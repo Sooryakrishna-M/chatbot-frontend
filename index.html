@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal AI Assistant Prototype</title>
+    <!-- Using Tailwind CSS for quick and clean styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Simple scrollbar styling */
+        #chat-window::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-window::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        #chat-window::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        #chat-window::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .user-msg {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+        }
+        .bot-msg {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #1f2937; /* gray-800 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="flex flex-col h-screen max-w-4xl mx-auto bg-white shadow-2xl rounded-lg">
+        <!-- Header -->
+        <header class="bg-gray-800 text-white p-4 text-center rounded-t-lg">
+            <h1 class="text-2xl font-bold">Legal AI Assistant</h1>
+            <p class="text-sm text-gray-300">Prototype powered by Gemini & RAG</p>
+        </header>
+
+        <!-- Chat Window -->
+        <main id="chat-window" class="flex-1 p-6 overflow-y-auto space-y-4">
+            <!-- Initial bot message -->
+            <div class="flex justify-start">
+                <div class="bot-msg p-3 rounded-lg max-w-lg shadow">
+                    <p>Hello! I am a legal assistant AI. Please ask me a question about the provided legal documents.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Typing Indicator -->
+        <div id="typing-indicator" class="p-4 text-gray-500 hidden">
+            <div class="flex items-center justify-start">
+                 <div class="bot-msg p-3 rounded-lg max-w-lg shadow flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.2s;"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <footer class="p-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+            <div class="flex items-center">
+                <input type="text" id="message-input" placeholder="Type your legal question here..." class="flex-1 p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <button id="send-button" class="bg-blue-600 text-white p-3 rounded-r-lg hover:bg-blue-700 transition font-semibold">Send</button>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // IMPORTANT: When you deploy your backend, change this URL.
+        // For local testing, it's http://127.0.0.1:5000/chat
+        // For production, it will be your Render URL, e.g., "https://your-app-name.onrender.com/chat"
+        const API_URL = "http://127.0.0.1:5000/chat";
+
+        // --- DOM ELEMENTS ---
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        // --- EVENT LISTENERS ---
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // --- FUNCTIONS ---
+        function addMessageToChat(message, sender) {
+            const messageDiv = document.createElement('div');
+            const messageContent = document.createElement('div');
+            
+            messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            messageContent.className = `${sender === 'user' ? 'user-msg' : 'bot-msg'} p-3 rounded-lg max-w-lg shadow`;
+            
+            // Basic markdown-like formatting for newlines
+            messageContent.innerHTML = message.replace(/\n/g, '<br>');
+
+            messageDiv.appendChild(messageContent);
+            chatWindow.appendChild(messageDiv);
+
+            // Scroll to the bottom of the chat window
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message === '') return;
+
+            // Display user's message
+            addMessageToChat(message, 'user');
+            messageInput.value = '';
+
+            // Show typing indicator
+            typingIndicator.classList.remove('hidden');
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Hide typing indicator
+                typingIndicator.classList.add('hidden');
+                
+                // Display bot's response
+                addMessageToChat(data.answer, 'bot');
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                // Hide typing indicator
+                typingIndicator.classList.add('hidden');
+                // Display error message in chat
+                addMessageToChat('Sorry, I encountered an error. Please check the connection to the backend or try again later.', 'bot');
+            }
+        }
+    </script>
+
+</body>
+</html>
